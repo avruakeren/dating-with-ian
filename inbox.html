@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>inbox ♡</title>
+    <script src="config.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", sans-serif;
+        background: #faf7f2;
+        color: #2d2a24;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        padding: 32px 16px;
+      }
+
+      .card {
+        width: min(640px, 100%);
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 32px;
+      }
+
+      .header .ornament {
+        font-size: 20px;
+        letter-spacing: 6px;
+        color: #d4a0a0;
+        margin-bottom: 8px;
+      }
+
+      .header h1 {
+        font-family: "Playfair Display", serif;
+        font-weight: 400;
+        font-size: clamp(26px, 5vw, 36px);
+        color: #2d2a24;
+        letter-spacing: -0.5px;
+      }
+
+      .header .sub {
+        font-size: 14px;
+        color: #a0968a;
+        font-weight: 300;
+        margin-top: 6px;
+      }
+
+      .item {
+        background: #fff;
+        border-radius: 16px;
+        padding: 18px 22px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+        border: 1px solid #ede8e0;
+        transition: box-shadow 0.2s, transform 0.2s;
+      }
+
+      .item:hover {
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        transform: translateY(-1px);
+      }
+
+      .item .meta {
+        font-size: 12px;
+        color: #b5aba0;
+        font-weight: 400;
+        letter-spacing: 0.3px;
+        margin-bottom: 8px;
+      }
+
+      .item .meta .num {
+        color: #d4a0a0;
+        font-weight: 500;
+      }
+
+      .item .detail {
+        display: flex;
+        gap: 20px;
+        font-size: 15px;
+        line-height: 1.6;
+      }
+
+      .item .detail .label {
+        color: #a0968a;
+        font-weight: 400;
+        min-width: 60px;
+      }
+
+      .item .detail .value {
+        color: #2d2a24;
+        font-weight: 500;
+      }
+
+      .empty {
+        text-align: center;
+        padding: 48px 20px;
+        color: #a0968a;
+        font-weight: 300;
+        font-size: 15px;
+        line-height: 1.8;
+      }
+
+      .empty .emoji {
+        font-size: 32px;
+        display: block;
+        margin-bottom: 12px;
+      }
+
+      .footer {
+        text-align: center;
+        margin-top: 24px;
+        font-size: 13px;
+        color: #ccc3b8;
+        font-weight: 300;
+        letter-spacing: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="header">
+        <div class="ornament">♡ &#10047; ♡ &#10047; ♡</div>
+        <h1>inbox</h1>
+        <p class="sub">blahblahblah</p>
+      </div>
+      <div id="content"></div>
+      <div class="footer">&#10047; avruakeren &#10047;</div>
+    </main>
+
+    <script>
+      var content = document.getElementById("content");
+
+      function renderItems(items, source) {
+        if (!items || !items.length) {
+          content.innerHTML =
+            '<div class="empty"><span class="emoji">&#9898;</span>Belum ada data.<br />Isi dulu dari alur date &rarr; tempat &rarr; last page.</div>';
+          return;
+        }
+        content.innerHTML = items
+          .map(function (item, index) {
+            var places = item.places || [];
+            if (typeof places === "string") {
+              try { places = JSON.parse(places); } catch (e) { places = [places]; }
+            }
+            var placesText = places.length ? places.join(" <span style=\"color:#d4a0a0\">·</span> ") : "belum dipilih";
+            return (
+              '<article class="item">' +
+              '<div class="meta"><span class="num">#' + (index + 1) + "</span> &mdash; " + new Date(item.created_at || item.createdAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) + "</div>" +
+              '<div class="detail"><span class="label">tanggal</span><span class="value">' + (item.chosen_date || item.chosenDate) + "</span></div>" +
+              '<div class="detail"><span class="label">tempat</span><span class="value">' + placesText + "</span></div>" +
+              "</article>"
+            );
+          })
+          .join("");
+      }
+
+      fetch(INSFORGE_BASE_URL + "/api/database/records/submissions?order=created_at.desc", {
+        headers: { Authorization: "Bearer " + INSFORGE_API_KEY },
+      })
+        .then(function (res) {
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          return res.json();
+        })
+        .then(function (data) {
+          renderItems(data, "remote");
+        })
+        .catch(function () {
+          var inboxItems = JSON.parse(localStorage.getItem("inboxSubmissions") || "[]");
+          renderItems(inboxItems, "local");
+        });
+    </script>
+  </body>
+</html>

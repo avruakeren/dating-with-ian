@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Date</title>
+    <link rel="stylesheet" href="date.css" />
+  </head>
+  <body>
+    <h1 title="choose a date">free nya kapan?</h1>
+    <form class="form-group" id="dateForm">
+      <label for="dateInput">hari apa? pilih tanggal</label>
+      <div>
+        <input id="dateInput" name="date" type="date" required />
+        <button class="button" type="submit">Submit</button>
+      </div>
+    </form>
+
+    <script>
+      document.getElementById("dateForm").addEventListener("submit", function (event) {
+        event.preventDefault();
+        var chosenDate = document.getElementById("dateInput").value;
+        if (!chosenDate) {
+          return;
+        }
+
+        localStorage.setItem("chosenDate", chosenDate);
+        location.href = "tempat.html";
+      });
+    </script>
+  </body>
+</html>

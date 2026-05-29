@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>pilih tempat</title>
+    <link rel="stylesheet" href="food.css" />
+  </head>
+  <body>
+    <form id="placeForm">
+      <div id="foodquestion">
+        <b>kemana?</b>
+      </div>
+
+      <div class="food-selection">
+        <div class="food-item">
+          <img src="perpus.jpg" alt="perpus" />
+          <label><input type="checkbox" name="food" value="perpus" /> perpus</label>
+        </div>
+        <div class="food-item">
+          <img src="kopken.png" alt="kopken" />
+          <label><input type="checkbox" name="food" value="kopi kenangan" /> kopi kenangan</label>
+        </div>
+        <div class="food-item">
+          <img src="temannongkrong.png" alt="temannongkrong" />
+          <label><input type="checkbox" name="food" value="teman nongkrong" /> teman nongkrong</label>
+        </div>
+        <div class="food-item">
+          <img src="gatau.jpg" alt="pasta" />
+          <label><input type="checkbox" name="food" value="gatau deh terserah lu" /> beliin gw kartu pokemon rep</label>
+        </div>
+      </div>
+
+      <button class="button" type="submit">lanjut</button>
+    </form>
+
+    <script>
+      document.getElementById("placeForm").addEventListener("submit", function (event) {
+        event.preventDefault();
+
+        var selectedPlaces = Array.from(
+          document.querySelectorAll('input[name="food"]:checked')
+        ).map(function (item) {
+          return item.value;
+        });
+
+        localStorage.setItem("selectedPlaces", JSON.stringify(selectedPlaces));
+        location.href = "lastpage.html";
+      });
+    </script>
+  </body>
+</html>

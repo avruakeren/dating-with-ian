@@ -1,0 +1,138 @@
+
+name: Intake Submission
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "issue atau json"
+        required: true
+        default: "issue"
+        type: choice
+        options:
+          - issue
+          - json
+      sender_name:
+        description: "Nama pengirim"
+        required: false
+        default: "anonymous"
+      chosen_date:
+        description: "Tanggal yang dipilih"
+        required: true
+      places_csv:
+        description: "Tempat dipisah koma"
+        required: false
+        default: ""
+  repository_dispatch:
+    types: [new_submission]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  parse-payload:
+    runs-on: ubuntu-latest
+    outputs:
+      target: ${{ steps.parse.outputs.target }}
+      sender_name: ${{ steps.parse.outputs.sender_name }}
+      chosen_date: ${{ steps.parse.outputs.chosen_date }}
+      places_csv: ${{ steps.parse.outputs.places_csv }}
+    steps:
+      - name: Parse payload from event
+        id: parse
+        shell: bash
+        run: |
+          TARGET="$(jq -r '.inputs.target // .client_payload.target // "issue"' "$GITHUB_EVENT_PATH")"
+          SENDER_NAME="$(jq -r '.inputs.sender_name // .client_payload.sender_name // "anonymous"' "$GITHUB_EVENT_PATH")"
+          CHOSEN_DATE="$(jq -r '.inputs.chosen_date // .client_payload.chosen_date // empty' "$GITHUB_EVENT_PATH")"
+          PLACES_CSV="$(jq -r '.inputs.places_csv // .client_payload.places_csv // ""' "$GITHUB_EVENT_PATH")"
+
+          if [ -z "$CHOSEN_DATE" ]; then
+            echo "chosen_date wajib diisi" >&2
+            exit 1
+          fi
+
+          echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          echo "sender_name=$SENDER_NAME" >> "$GITHUB_OUTPUT"
+          echo "chosen_date=$CHOSEN_DATE" >> "$GITHUB_OUTPUT"
+          echo "places_csv=$PLACES_CSV" >> "$GITHUB_OUTPUT"
+
+  create-issue:
+    needs: parse-payload
+    if: ${{ needs.parse-payload.outputs.target == 'issue' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create issue from submission
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const senderName = `${{ toJson(needs.parse-payload.outputs.sender_name) }}`;
+            const chosenDate = `${{ toJson(needs.parse-payload.outputs.chosen_date) }}`;
+            const placesCsv = `${{ toJson(needs.parse-payload.outputs.places_csv) }}`;
+            const places = placesCsv
+              .split(',')
+              .map((v) => v.trim())
+              .filter(Boolean);
+
+            const title = `Submission baru - ${senderName} - ${chosenDate}`;
+            const body = [
+              '## Submission Baru',
+              '',
+              `- Nama: **${senderName}**`,
+              `- Tanggal: **${chosenDate}**`,
+              `- Tempat: **${places.length ? places.join(', ') : 'belum dipilih'}**`,
+              `- Waktu submit (UTC): **${new Date().toISOString()}**`,
+            ].join('\n');
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['submission'],
+            });
+
+  save-json:
+    needs: parse-payload
+    if: ${{ needs.parse-payload.outputs.target == 'json' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure submissions file exists
+        shell: bash
+        run: |
+          mkdir -p submissions
+          if [ ! -f submissions/submissions.json ]; then
+            echo '[]' > submissions/submissions.json
+          fi
+
+      - name: Append submission to JSON
+        shell: bash
+        env:
+          SENDER_NAME: ${{ needs.parse-payload.outputs.sender_name }}
+          CHOSEN_DATE: ${{ needs.parse-payload.outputs.chosen_date }}
+          PLACES_CSV: ${{ needs.parse-payload.outputs.places_csv }}
+        run: |
+          ITEM_JSON=$(jq -n \
+            --arg createdAt "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg senderName "$SENDER_NAME" \
+            --arg chosenDate "$CHOSEN_DATE" \
+            --arg placesCsv "$PLACES_CSV" \
+            '{
+              createdAt: $createdAt,
+              senderName: $senderName,
+              chosenDate: $chosenDate,
+              places: ($placesCsv | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0)))
+            }')
+
+          jq --argjson item "$ITEM_JSON" '. = [$item] + .' submissions/submissions.json > submissions/submissions.json.tmp
+          mv submissions/submissions.json.tmp submissions/submissions.json
+
+      - name: Commit and push JSON update
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: add new submission"
+          file_pattern: submissions/submissions.json
